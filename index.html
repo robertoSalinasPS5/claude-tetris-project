@@ -8,10 +8,13 @@
 </head>
 <body>
   <div class="wrapper">
-    <label class="theme-toggle" title="Cambiar tema claro/oscuro">
-      <input type="checkbox" id="theme-switch" aria-label="Cambiar tema claro/oscuro" />
-      <span class="theme-toggle-track"><span class="theme-toggle-thumb"></span></span>
-    </label>
+    <div class="top-controls">
+      <button type="button" id="sound-btn" class="sound-btn" title="Activar/silenciar sonido" aria-pressed="true">🔊</button>
+      <label class="theme-toggle" title="Cambiar tema claro/oscuro">
+        <input type="checkbox" id="theme-switch" aria-label="Cambiar tema claro/oscuro" />
+        <span class="theme-toggle-track"><span class="theme-toggle-thumb"></span></span>
+      </label>
+    </div>
     <h1 class="game-title">TETRIS</h1>
     <div class="game-container">
       <canvas id="board" width="300" height="600"></canvas>
@@ -28,6 +31,14 @@
         <div class="panel-section">
           <span class="label">LEVEL</span>
           <span class="value" id="level">1</span>
+        </div>
+        <div class="panel-section">
+          <span class="label">COMBO</span>
+          <span class="value combo-value idle" id="combo">—</span>
+        </div>
+        <div class="panel-section hidden" id="b2b-section">
+          <span class="label">BACK-TO-BACK</span>
+          <span class="value b2b-value" id="b2b">ACTIVO</span>
         </div>
 
         <div class="panel-section">

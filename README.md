@@ -43,6 +43,20 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Niveles** que aumentan cada 10 líneas y aceleran la caída.
 - **Pausa** y **Game Over** con opción de reinicio.
 
+Y además, una capa de puntuación avanzada con su propio feedback:
+
+- **Combo encadenado**: cada pieza consecutiva que limpia líneas sube el combo y multiplica la
+  jugada (x1 → x1.5 → x2 → escalado progresivo hasta x4), más un bono de `combo × 50 × nivel`.
+  Una pieza que no limpia nada rompe la cadena.
+- **T-Spin**: detección estándar de 3 esquinas (la pieza T, un giro como último movimiento y al
+  menos 3 diagonales bloqueadas). Puntúa 400 / 800 / 1200 / 1600 × nivel según las líneas.
+- **Back-to-Back**: encadenar Tetris o T-Spins sin limpiezas simples de por medio multiplica
+  la jugada por 1.5.
+- **Perfect Clear**: dejar el tablero completamente vacío añade `2000 × nivel`.
+- **Feedback**: textos flotantes, partículas de colores al borrar líneas, vibración de pantalla
+  en las jugadas grandes y sonidos sintetizados con la **Web Audio API** (sin archivos de audio;
+  se pueden silenciar con el botón 🔊 de la esquina superior).
+
 ---
 
 ## Cómo ejecutar el juego

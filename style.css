@@ -21,6 +21,8 @@ body {
   --btn-text: #0f0f17;
   --toggle-track: #22223a;
   --toggle-border: #3a3a5a;
+  --combo-hot: #ffd54f;
+  --b2b-color: #ffb74d;
 
   background: var(--bg);
   color: var(--text);
@@ -50,6 +52,8 @@ body.light {
   --btn-text: #ffffff;
   --toggle-track: #ccced8;
   --toggle-border: #b8bccc;
+  --combo-hot: #b8860b;
+  --b2b-color: #b35c00;
 }
 
 .wrapper {
@@ -66,11 +70,38 @@ body.light {
   text-shadow: 0 0 20px var(--title-glow);
 }
 
-/* ---- Switch de tema ---- */
-.theme-toggle {
+/* ---- Controles superiores (sonido + tema) ---- */
+.top-controls {
   position: absolute;
   top: 4px;
   right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sound-btn {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.sound-btn[aria-pressed="false"] {
+  opacity: 0.5;
+}
+
+.sound-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Switch de tema ---- */
+.theme-toggle {
   display: inline-flex;
   align-items: center;
   cursor: pointer;
@@ -155,6 +186,25 @@ body.light {
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 1px;
+}
+
+/* ---- Combo / Back-to-Back ---- */
+.panel-section.hidden {
+  display: none;
+}
+
+.combo-value {
+  color: var(--combo-hot);
+  transition: color 0.15s;
+}
+
+.combo-value.idle {
+  color: var(--label-color);
+}
+
+.b2b-value {
+  font-size: 18px;
+  color: var(--b2b-color);
 }
 
 #next-canvas {
