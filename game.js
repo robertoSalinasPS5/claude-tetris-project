@@ -214,7 +214,7 @@ function resolveClear({ cleared, rows }, tspin) {
 
   // Tetris: la siguiente pieza en NEXT será el 1x1 como recompensa
   if (cleared === 4) pendingSingle = true;
-  level = Math.floor(lines / 10) + 1;
+  level = gameStartLevel + Math.floor(lines / 10);
   dropInterval = Math.max(100, 1000 - (level - 1) * 90);
 
   // ---- feedback ----
@@ -577,6 +577,103 @@ function applySound(on) {
   if (masterGain) masterGain.gain.value = on ? 0.3 : 0;
 }
 
+/* =================== ESTADO DE UI COMPARTIDO =================== */
+
+// Cualquier pantalla modal (menú de pausa, entrada de nombre de récord) registra
+// su id aquí al abrirse y lo borra al cerrarse. Mientras haya alguna abierta -o el
+// foco esté en un campo de texto- el handler de keydown ignora los controles del
+// juego, para no mover la pieza sin querer al volver.
+const openScreens = new Set();
+
+function uiBlocked() {
+  const el = document.activeElement;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) return true;
+  return openScreens.size > 0;
+}
+
+/* =================== MENÚ DE PAUSA =================== */
+
+const MAX_START_LEVEL = 15;
+
+const pauseMenu = document.getElementById('pause-menu');
+const pauseMainView = document.getElementById('pause-main');
+const pauseControlsView = document.getElementById('pause-controls');
+const resumeBtn = document.getElementById('resume-btn');
+const menuRestartBtn = document.getElementById('menu-restart-btn');
+const showControlsBtn = document.getElementById('show-controls-btn');
+const backControlsBtn = document.getElementById('back-controls-btn');
+const startLevelSelect = document.getElementById('start-level');
+
+// Nivel inicial: preferencia de UI persistida (como theme/soundOn), NO estado de
+// partida, así que init() no la resetea. Se aplica a la SIGUIENTE partida.
+let startLevel = clampStartLevel(parseInt(localStorage.getItem('tetris-start-level'), 10));
+
+// Estado de partida: con qué nivel arrancó la partida EN CURSO. resolveClear() debe
+// usar este y no startLevel, que el jugador puede cambiar durante la pausa; si no,
+// el cambio se aplicaría retroactivamente a la partida abierta. init() lo refresca.
+let gameStartLevel = startLevel;
+
+function clampStartLevel(n) {
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(MAX_START_LEVEL, Math.max(1, Math.floor(n)));
+}
+
+function applyStartLevel(n) {
+  startLevel = clampStartLevel(n);
+  localStorage.setItem('tetris-start-level', String(startLevel));
+  startLevelSelect.value = String(startLevel);
+}
+
+// "Ver controles" es una sub-vista dentro del propio menú, no otra pantalla
+function showPauseControls(on) {
+  pauseControlsView.classList.toggle('hidden', !on);
+  pauseMainView.classList.toggle('hidden', on);
+}
+
+function openPauseMenu() {
+  openScreens.add('pause');
+  showPauseControls(false);
+  startLevelSelect.value = String(startLevel);
+  overlayTitle.classList.add('hidden');
+  overlayScore.classList.add('hidden');
+  restartBtn.classList.add('hidden');
+  pauseMenu.classList.remove('hidden');
+  overlay.classList.remove('hidden');
+}
+
+function closePauseMenu() {
+  openScreens.delete('pause');
+  showPauseControls(false);
+  pauseMenu.classList.add('hidden');
+  overlayTitle.classList.remove('hidden');
+  overlayScore.classList.remove('hidden');
+  restartBtn.classList.remove('hidden');
+  overlay.classList.add('hidden');
+  // sin esto el foco se queda en el botón pulsado y Space volvería a activarlo
+  const el = document.activeElement;
+  if (el && el !== document.body && typeof el.blur === 'function') el.blur();
+}
+
+resumeBtn.addEventListener('click', () => { ensureAudio(); togglePause(); });
+menuRestartBtn.addEventListener('click', () => { ensureAudio(); init(); });
+showControlsBtn.addEventListener('click', () => showPauseControls(true));
+backControlsBtn.addEventListener('click', () => showPauseControls(false));
+startLevelSelect.addEventListener('change', () => applyStartLevel(parseInt(startLevelSelect.value, 10)));
+
+startLevelSelect.value = String(startLevel);
+
+// El switch de tema es un <input> visualmente oculto que conserva el foco tras
+// pulsarlo, y uiBlocked() trata cualquier campo enfocado como bloqueo: sin este blur
+// el teclado del juego quedaría muerto al cambiar de tema sin ningún menú abierto.
+themeSwitch.addEventListener('change', () => themeSwitch.blur());
+
+// El handler principal ignora las teclas mientras la UI bloquea, así que su
+// e.preventDefault() de Space nunca se ejecuta: sin esto el navegador haría scroll
+// o reactivaría el botón del menú que tenga el foco.
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && uiBlocked()) e.preventDefault();
+});
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
@@ -588,15 +685,17 @@ function endGame() {
 
 function togglePause() {
   if (gameOver) return;
-  paused = !paused;
-  if (!paused) {
+  if (paused) {
+    // cerrar el menú antes de reanudar: deja de bloquear el input y devuelve el foco
+    closePauseMenu();
+    paused = false;
     lastTime = performance.now();
     loop(lastTime);
   } else {
+    paused = true;
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    animId = 0;
+    openPauseMenu();
   }
 }
 
@@ -630,15 +729,17 @@ function applyTheme(t) {
   if (next) drawNext();
 }
 
-// theme is a UI preference, not game state, so init() intentionally leaves it untouched
+// theme, soundOn y startLevel son preferencias de UI, no estado de partida:
+// init() las deja intactas a propósito
 function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  gameStartLevel = startLevel;
+  level = gameStartLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   pendingSingle = false;
   comboCount = 0;
@@ -649,14 +750,17 @@ function init() {
   next = randomPiece();
   spawn();
   updateHUD();
-  overlay.classList.add('hidden');
+  // deja la UI del menú limpia: sin esto un reinicio desde una ruta que no pase por
+  // closePauseMenu() dejaría 'pause' en openScreens y el teclado muerto para siempre
+  closePauseMenu();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
   ensureAudio();   // primer gesto del usuario: es el único momento válido para crearlo
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (uiBlocked()) return;
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':

@@ -50,10 +50,10 @@
           <span class="label">CONTROLS</span>
           <ul>
             <li><kbd>←</kbd><kbd>→</kbd> mover</li>
-            <li><kbd>↑</kbd> rotar</li>
+            <li><kbd>↑</kbd> o <kbd>X</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd> o <kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
@@ -64,6 +64,51 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <button id="restart-btn">Reiniciar</button>
+
+        <div class="overlay-screen hidden" id="pause-menu">
+          <p class="pause-title">PAUSA</p>
+
+          <div class="pause-view" id="pause-main">
+            <div class="pause-options">
+              <button type="button" class="menu-btn" id="resume-btn">Reanudar</button>
+              <button type="button" class="menu-btn" id="menu-restart-btn">Reiniciar</button>
+              <button type="button" class="menu-btn menu-btn-ghost" id="show-controls-btn">Ver controles</button>
+            </div>
+
+            <div class="pause-setting">
+              <label class="label" for="start-level">NIVEL INICIAL</label>
+              <select class="menu-select" id="start-level">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+              </select>
+              <p class="pause-hint">Se aplica en la próxima partida</p>
+            </div>
+          </div>
+
+          <div class="pause-view hidden" id="pause-controls">
+            <ul class="menu-controls">
+              <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+              <li><kbd>↑</kbd> o <kbd>X</kbd> rotar</li>
+              <li><kbd>↓</kbd> bajar</li>
+              <li><kbd>Space</kbd> caída</li>
+              <li><kbd>P</kbd> o <kbd>Esc</kbd> pausa</li>
+            </ul>
+            <button type="button" class="menu-btn menu-btn-ghost" id="back-controls-btn">Volver</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
