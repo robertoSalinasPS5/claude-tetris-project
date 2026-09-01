@@ -197,6 +197,7 @@ function resolveClear({ cleared, rows }, tspin) {
   }
 
   comboCount++;
+  if (comboCount > runBestCombo) runBestCombo = comboCount;
   lines += cleared;
 
   const difficult = cleared === 4 || tspin;
@@ -577,13 +578,218 @@ function applySound(on) {
   if (masterGain) masterGain.gain.value = on ? 0.3 : 0;
 }
 
+/* =================== RÉCORDS LOCALES =================== */
+
+const RECORDS_KEY = 'tetris-records';
+const START_LEVEL_KEY = 'tetris-start-level';   // lo escribe el selector de nivel; aquí sólo se lee
+const MAX_RECORDS = 5;
+
+const recordsScreen = document.getElementById('records-screen');
+const recordsTable = document.getElementById('records-table');
+const recordsBody = document.getElementById('records-body');
+const recordsEmpty = document.getElementById('records-empty');
+const recordsBests = document.getElementById('records-bests');
+const recordForm = document.getElementById('record-form');
+const recordNameInput = document.getElementById('record-name');
+const recordsResetBtn = document.getElementById('records-reset-btn');
+
+// mejor combo de la partida en curso; es estado de partida, así que init() lo resetea
+let runBestCombo = 0;
+
+// El almacenamiento puede estar corrupto o venir de otra versión: nunca debe romper
+// el juego, así que todo se normaliza y cualquier fallo devuelve una lista vacía.
+function loadRecords() {
+  let raw;
+  try {
+    raw = JSON.parse(localStorage.getItem(RECORDS_KEY));
+  } catch (err) {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(r => r && typeof r === 'object')
+    .map(r => ({
+      name: String(r.name || 'ANÓNIMO').slice(0, 12),
+      score: Number(r.score) || 0,
+      lines: Number(r.lines) || 0,
+      level: Number(r.level) || 1,
+      startLevel: Number(r.startLevel) || 1,
+      combo: Number(r.combo) || 0,
+      date: String(r.date || ''),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_RECORDS);
+}
+
+function saveRecords(list) {
+  try {
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(list));
+    return true;
+  } catch (err) {
+    return false;   // cuota llena o navegación privada: la partida sigue siendo jugable
+  }
+}
+
+// El nivel inicial lo gestiona otra parte del juego; aquí sólo se lee para poder
+// mostrar en la tabla qué partidas partían de un nivel alto (la puntuación va x nivel).
+function currentStartLevel() {
+  let stored;
+  try {
+    stored = localStorage.getItem(START_LEVEL_KEY);
+  } catch (err) {
+    return 1;
+  }
+  const n = parseInt(stored, 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+function qualifiesForTop(list, value) {
+  if (value <= 0) return false;
+  return list.length < MAX_RECORDS || value > list[list.length - 1].score;
+}
+
+function renderRecords(highlight = -1) {
+  const list = loadRecords();
+  recordsBody.textContent = '';
+
+  list.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i === highlight) tr.className = 'record-new';
+    if (r.date) tr.title = `Fecha: ${r.date}`;
+    const cells = [
+      [`${i + 1}`, false],
+      [r.name, false],
+      [r.score.toLocaleString(), true],
+      [String(r.lines), true],
+      [String(r.level), true],
+      [String(r.startLevel), true],
+      [`x${r.combo}`, true],
+    ];
+    for (const [text, num] of cells) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (num) td.className = 'num';
+      tr.appendChild(td);
+    }
+    recordsBody.appendChild(tr);
+  });
+
+  const empty = list.length === 0;
+  recordsTable.classList.toggle('hidden', empty);
+  recordsEmpty.classList.toggle('hidden', !empty);
+  recordsBests.classList.toggle('hidden', empty);
+  if (!empty) {
+    const bestCombo = list.reduce((m, r) => Math.max(m, r.combo), 0);
+    const bestLines = list.reduce((m, r) => Math.max(m, r.lines), 0);
+    recordsBests.textContent = `Mejor combo: x${bestCombo} · Líneas máximas: ${bestLines}`;
+  }
+}
+
+function showRecords(withForm) {
+  renderRecords();
+  recordsScreen.classList.remove('hidden');
+  recordForm.classList.toggle('hidden', !withForm);
+  if (withForm) {
+    // mientras el campo de nombre está abierto, el teclado no debe mover la pieza
+    openScreens.add('records');
+    recordNameInput.value = '';
+    recordNameInput.focus();
+  } else {
+    openScreens.delete('records');
+  }
+}
+
+function hideRecords() {
+  recordsScreen.classList.add('hidden');
+  closeRecordForm();
+}
+
+function closeRecordForm() {
+  recordForm.classList.add('hidden');
+  openScreens.delete('records');
+  if (document.activeElement === recordNameInput) recordNameInput.blur();
+}
+
+// Pantalla de inicio: la tabla de récords antes de la primera partida.
+// gameOver = true es lo que de verdad mantiene el bucle parado (ver "rAF lifecycle"
+// en CLAUDE.md) y de paso neutraliza los controles y togglePause().
+function showStartScreen() {
+  gameOver = true;
+  cancelAnimationFrame(animId);
+  animId = 0;
+  overlayTitle.textContent = 'TETRIS';
+  overlayScore.textContent = 'Pulsa Jugar para empezar';
+  restartBtn.textContent = 'Jugar';
+  overlay.classList.remove('hidden');
+  showRecords(false);
+  draw();
+}
+
+recordForm.addEventListener('submit', e => {
+  e.preventDefault();
+  ensureAudio();
+  const list = loadRecords();
+  if (!qualifiesForTop(list, score)) {   // los récords pudieron cambiar (p.ej. otra pestaña)
+    closeRecordForm();
+    renderRecords();
+    return;
+  }
+  const entry = {
+    name: (recordNameInput.value.trim() || 'ANÓNIMO').toUpperCase().slice(0, 12),
+    score,
+    lines,
+    level,
+    startLevel: currentStartLevel(),
+    combo: runBestCombo,
+    date: new Date().toISOString().slice(0, 10),
+  };
+  // sort estable: ante empate el récord antiguo conserva la posición más alta
+  list.push(entry);
+  list.sort((a, b) => b.score - a.score);
+  const idx = list.indexOf(entry);
+  const saved = saveRecords(list.slice(0, MAX_RECORDS));
+  closeRecordForm();
+  renderRecords(saved ? idx : -1);
+});
+
+recordsResetBtn.addEventListener('click', () => {
+  ensureAudio();
+  if (!confirm('¿Borrar todos los récords? Esta acción no se puede deshacer.')) return;
+  try {
+    localStorage.removeItem(RECORDS_KEY);
+  } catch (err) {
+    // ignorado: si no se puede escribir, la tabla se vuelve a pintar igualmente
+  }
+  // el formulario de nombre se deja abierto a propósito: vaciar la tabla no debe
+  // tirar por la borda la partida que el jugador todavía no ha guardado
+  renderRecords();
+  if (!recordForm.classList.contains('hidden')) recordNameInput.focus();
+});
+
+/* =================== ESTADO DE UI COMPARTIDO =================== */
+
+// Cualquier pantalla modal (menú de pausa, entrada de nombre de récord) registra
+// su id aquí al abrirse y lo borra al cerrarse. Mientras haya alguna abierta -o el
+// foco esté en un campo de texto- el handler de keydown ignora los controles del
+// juego, para no mover la pieza sin querer al volver.
+const openScreens = new Set();
+
+function uiBlocked() {
+  const el = document.activeElement;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) return true;
+  return openScreens.size > 0;
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
   animId = 0;
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  // el overlay debe ser visible antes de showRecords(): focus() no hace nada
+  // sobre un elemento dentro de un contenedor con display:none
   overlay.classList.remove('hidden');
+  showRecords(qualifiesForTop(loadRecords(), score));
 }
 
 function togglePause() {
@@ -644,11 +850,14 @@ function init() {
   comboCount = 0;
   b2bActive = false;
   lastMoveWasRotation = false;
+  runBestCombo = 0;
   resetFX();
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
+  hideRecords();
+  restartBtn.textContent = 'Reiniciar';
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
@@ -656,7 +865,8 @@ function init() {
 
 document.addEventListener('keydown', e => {
   ensureAudio();   // primer gesto del usuario: es el único momento válido para crearlo
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (uiBlocked()) return;
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -687,7 +897,10 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', () => { ensureAudio(); init(); });
-themeSwitch.addEventListener('change', () => applyTheme(themeSwitch.checked ? 'light' : 'dark'));
+themeSwitch.addEventListener('change', () => {
+  applyTheme(themeSwitch.checked ? 'light' : 'dark');
+  themeSwitch.blur();   // si conserva el foco, uiBlocked() congelaría los controles
+});
 soundBtn.addEventListener('click', () => {
   ensureAudio();
   applySound(!soundOn);
@@ -697,3 +910,4 @@ soundBtn.addEventListener('click', () => {
 applyTheme(localStorage.getItem('tetris-theme') || 'dark');
 applySound(soundOn);
 init();
+showStartScreen();
