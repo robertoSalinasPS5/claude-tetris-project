@@ -10,10 +10,12 @@
   <div class="wrapper">
     <div class="top-controls">
       <button type="button" id="sound-btn" class="sound-btn" title="Activar/silenciar sonido" aria-pressed="true">🔊</button>
-      <label class="theme-toggle" title="Cambiar tema claro/oscuro">
-        <input type="checkbox" id="theme-switch" aria-label="Cambiar tema claro/oscuro" />
-        <span class="theme-toggle-track"><span class="theme-toggle-thumb"></span></span>
-      </label>
+      <select id="skin-select" class="skin-select" title="Cambiar skin visual" aria-label="Skin visual">
+        <option value="retro">Retro</option>
+        <option value="neon">Neon</option>
+        <option value="pastel">Pastel</option>
+        <option value="pixel">Pixel art</option>
+      </select>
     </div>
     <h1 class="game-title">TETRIS</h1>
     <div class="game-container">

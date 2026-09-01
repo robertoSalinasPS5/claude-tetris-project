@@ -51,9 +51,7 @@ const B2B_MULTIPLIER = 1.5;
 const PERFECT_CLEAR_BONUS = 2000;
 const COMBO_BONUS_PER_LEVEL = 50;
 
-const GRID_COLORS = { dark: '#22222e', light: '#dcdfe8' };
-
-// Colores de los popups; no dependen del tema porque se pintan sobre el tablero
+// Colores de los popups; no dependen de la skin porque se pintan sobre el tablero
 const FX_COLORS = {
   combo: '#ffd54f',
   tetris: '#4dd0e1',
@@ -61,6 +59,83 @@ const FX_COLORS = {
   b2b: '#ffb74d',
   perfect: '#81c784',
 };
+
+/* ===================== SKINS VISUALES ===================== */
+
+// Cada skin define su paleta de bloques, el color de la rejilla y la funcion que
+// pinta un bloque. Las paletas mantienen los 13 huecos de COLORS/PIECES (el 0 es
+// siempre null y las celdas del tablero valen 1-12), asi que el orden es fijo.
+// Los colores de la interfaz viven en style.css, en los bloques body[data-skin]
+// y los nombres visibles en los <option> de #skin-select (index.html).
+// La skin es una preferencia de UI persistida en localStorage, NO estado de
+// partida: init() no la toca. Las funciones paint* se declaran mas abajo (junto
+// a drawBlock) y llegan aqui por hoisting.
+const SKINS = {
+  retro: {
+    grid: '#22222e',
+    paint: paintRetro,
+    colors: COLORS,
+  },
+  neon: {
+    grid: '#111d33',
+    paint: paintNeon,
+    colors: [
+      null,
+      '#00e5ff', // I
+      '#ffea00', // O
+      '#d500f9', // T
+      '#00e676', // S
+      '#ff1744', // Z
+      '#2979ff', // J
+      '#ff9100', // L
+      '#ff4081', // + cruz
+      '#1de9b6', // U herradura
+      '#b388ff', // Y
+      '#ffd600', // 1x1 single
+      '#84ffff', // dona
+    ],
+  },
+  pastel: {
+    grid: '#e7e1f0',
+    paint: paintPastel,
+    colors: [
+      null,
+      '#7fd8e8', // I
+      '#ffd98a', // O
+      '#c79ee6', // T
+      '#96d9a4', // S
+      '#f09b9b', // Z
+      '#9ab8f0', // J
+      '#ffbe7d', // L
+      '#f2a5c8', // + cruz
+      '#7fcdc2', // U herradura
+      '#b3a1e0', // Y
+      '#f2d980', // 1x1 single
+      '#b3c1cc', // dona
+    ],
+  },
+  pixel: {
+    grid: '#232838',
+    paint: paintPixel,
+    colors: [
+      null,
+      '#2ec4d6', // I
+      '#f2c744', // O
+      '#a259c4', // T
+      '#5cb85c', // S
+      '#d84f4f', // Z
+      '#4a7fe0', // J
+      '#e08b30', // L
+      '#e05c96', // + cruz
+      '#2fae9e', // U herradura
+      '#7b5bd6', // Y
+      '#f0c419', // 1x1 single
+      '#7f8c9a', // dona
+    ],
+  },
+};
+
+const DEFAULT_SKIN = 'retro';
 
 const MAX_PARTICLES = 240;
 const PARTICLES_PER_ROW = 7;
@@ -80,7 +155,7 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
-const themeSwitch = document.getElementById('theme-switch');
+const skinSelect = document.getElementById('skin-select');
 const comboEl = document.getElementById('combo');
 const b2bSection = document.getElementById('b2b-section');   // el texto es fijo; sólo se muestra/oculta
 const soundBtn = document.getElementById('sound-btn');
@@ -89,7 +164,8 @@ let board, current, next, score, lines, level, paused, gameOver, lastTime, dropA
 let pendingSingle;
 // combo/B2B sobreviven entre piezas, no entre partidas: init() los resetea
 let comboCount, b2bActive, lastMoveWasRotation;
-let theme;
+// preferencia de UI, no estado de partida (como soundOn): la fija applySkin()
+let skinId = DEFAULT_SKIN;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -327,20 +403,127 @@ function updateHUD() {
   b2bSection.classList.toggle('hidden', !b2bActive);
 }
 
+function blockColor(colorIndex) {
+  return SKINS[skinId].colors[colorIndex];
+}
+
+// Unico punto de dibujo de bloques: tablero, fantasma (alpha 0.2), pieza actual
+// y el canvas de NEXT. Delega el pintado en la skin activa.
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const skin = SKINS[skinId];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.paint(context, x * size, y * size, size, skin.colors[colorIndex]);
   context.globalAlpha = 1;
 }
 
+/* --- pintores por skin: px/py ya en pixeles y globalAlpha ya aplicado --- */
+
+function paintRetro(context, px, py, size, color) {
+  context.fillStyle = color;
+  context.fillRect(px + 1, py + 1, size - 2, size - 2);
+  // highlight
+  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillRect(px + 1, py + 1, size - 2, 4);
+}
+
+// Los bloques caros (glow del neon, patron del pixel art) se pintan una vez en un
+// canvas fuera de pantalla y luego se estampan con drawImage: repetir 200 celdas
+// a 60 fps con shadowBlur -de las operaciones mas lentas del canvas 2D- hundiria
+// los fps justo cuando el tablero se llena.
+const blockTiles = new Map();
+
+function blockTile(key, w, h, render) {
+  const cached = blockTiles.get(key);
+  if (cached) return cached;
+  const tile = document.createElement('canvas');
+  tile.width = w;
+  tile.height = h;
+  render(tile.getContext('2d'));
+  blockTiles.set(key, tile);
+  return tile;
+}
+
+function paintNeon(context, px, py, size, color) {
+  const s = Math.max(1, Math.round(size));
+  const pad = Math.round(s * 0.35);   // margen para que el glow no se recorte
+  const box = s + pad * 2;
+  // el shadowBlur se queda dentro del tile: nunca toca al contexto del tablero,
+  // asi que no puede colarse en la rejilla, las particulas ni los popups
+  const tile = blockTile(`neon:${color}:${s}`, box, box, c => neonGlow(c, s, pad, color));
+  context.drawImage(tile, px - pad, py - pad, box, box);
+}
+
+function neonGlow(c, s, pad, color) {
+  const inset = 2;
+  const side = s - inset * 2;
+  c.fillStyle = color;
+  c.globalAlpha = 0.22;
+  c.fillRect(pad + inset, pad + inset, side, side);
+  c.globalAlpha = 1;
+  c.shadowColor = color;
+  c.shadowBlur = s * 0.4;
+  c.strokeStyle = color;
+  c.lineWidth = 2;
+  c.strokeRect(pad + inset + 1, pad + inset + 1, side - 2, side - 2);
+}
+
+function paintPastel(context, px, py, size, color) {
+  const r = size * 0.28;
+  context.fillStyle = color;
+  context.strokeStyle = 'rgba(0,0,0,0.10)';
+  context.lineWidth = 1;
+  roundedRect(context, px + 1.5, py + 1.5, size - 3, size - 3, r);
+  context.fill();
+  context.stroke();
+  context.fillStyle = 'rgba(255,255,255,0.4)';
+  roundedRect(context, px + 4, py + 4, size - 8, (size - 8) * 0.34, r * 0.5);
+  context.fill();
+}
+
+function roundedRect(context, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  context.beginPath();
+  if (context.roundRect) {
+    context.roundRect(x, y, w, h, rr);
+    return;
+  }
+  context.moveTo(x + rr, y);
+  context.arcTo(x + w, y, x + w, y + h, rr);
+  context.arcTo(x + w, y + h, x, y + h, rr);
+  context.arcTo(x, y + h, x, y, rr);
+  context.arcTo(x, y, x + w, y, rr);
+  context.closePath();
+}
+
+function paintPixel(context, px, py, size, color) {
+  const s = Math.max(1, Math.round(size));
+  const tile = blockTile(`pixel:${color}:${s}`, s, s, c => pixelPattern(c, s, color));
+  context.drawImage(tile, px, py, s, s);
+}
+
+function pixelPattern(c, s, color) {
+  const u = Math.max(1, Math.round(s / 8));   // "pixel" gordo del patron
+  c.fillStyle = color;
+  c.fillRect(0, 0, s, s);
+  c.fillStyle = 'rgba(255,255,255,0.28)';
+  c.fillRect(0, 0, s, u);
+  c.fillRect(0, 0, u, s);
+  c.fillStyle = 'rgba(0,0,0,0.38)';
+  c.fillRect(0, s - u, s, u);
+  c.fillRect(s - u, 0, u, s);
+  c.fillStyle = 'rgba(255,255,255,0.22)';
+  c.fillRect(u * 2, u * 2, u, u);
+  c.fillRect(u * 3, u * 2, u, u);
+  c.fillRect(u * 2, u * 3, u, u);
+  c.fillStyle = 'rgba(0,0,0,0.2)';
+  c.fillRect(u * 4, u * 4, u, u);
+  c.fillRect(u * 5, u * 4, u, u);
+  c.fillRect(u * 5, u * 5, u, u);
+}
+
 function drawGrid() {
-  ctx.strokeStyle = GRID_COLORS[theme];
+  ctx.strokeStyle = SKINS[skinId].grid;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -390,7 +573,7 @@ function spawnParticles(rows) {
         life: 700,
         ttl: 700,
         size: 2 + Math.random() * 3,
-        color: COLORS[row.cells[c]] || '#ffffff',
+        color: blockColor(row.cells[c]) || '#ffffff',
       });
     }
   }
@@ -577,6 +760,20 @@ function applySound(on) {
   if (masterGain) masterGain.gain.value = on ? 0.3 : 0;
 }
 
+/* =================== ESTADO DE UI COMPARTIDO =================== */
+
+// Cualquier pantalla modal (menú de pausa, entrada de nombre de récord) registra
+// su id aquí al abrirse y lo borra al cerrarse. Mientras haya alguna abierta -o el
+// foco esté en un campo de texto- el handler de keydown ignora los controles del
+// juego, para no mover la pieza sin querer al volver.
+const openScreens = new Set();
+
+function uiBlocked() {
+  const el = document.activeElement;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) return true;
+  return openScreens.size > 0;
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
@@ -621,16 +818,21 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
-function applyTheme(t) {
-  theme = t;
-  document.body.classList.toggle('light', t === 'light');
-  localStorage.setItem('tetris-theme', t);
-  themeSwitch.checked = t === 'light';
+// Cambia la skin en caliente: nueva paleta + nueva funcion de pintado y se
+// repinta sin recargar. Tambien se llama antes de init(), cuando todavia no hay
+// tablero ni pieza siguiente: de ahi las guardas.
+function applySkin(id) {
+  // hasOwnProperty y no `SKINS[id]`: 'toString' o 'constructor' heredados del
+  // prototipo colarian un paint inexistente y romperian draw() en cada frame
+  skinId = Object.prototype.hasOwnProperty.call(SKINS, id) ? id : DEFAULT_SKIN;
+  document.body.dataset.skin = skinId;
+  localStorage.setItem('tetris-skin', skinId);
+  skinSelect.value = skinId;
   if (board) draw();
   if (next) drawNext();
 }
 
-// theme is a UI preference, not game state, so init() intentionally leaves it untouched
+// the skin is a UI preference, not game state, so init() intentionally leaves it untouched
 function init() {
   board = createBoard();
   score = 0;
@@ -656,7 +858,8 @@ function init() {
 
 document.addEventListener('keydown', e => {
   ensureAudio();   // primer gesto del usuario: es el único momento válido para crearlo
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (uiBlocked()) return;
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -687,13 +890,37 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', () => { ensureAudio(); init(); });
-themeSwitch.addEventListener('change', () => applyTheme(themeSwitch.checked ? 'light' : 'dark'));
+// Mientras el select tiene el foco, sus teclas son suyas: el listener del juego
+// esta en document, asi que basta con cortar la propagacion para que ni P/Escape
+// pausen ni las flechas muevan la pieza al elegir skin.
+let skinKeyNav = false;
+
+skinSelect.addEventListener('keydown', e => {
+  e.stopPropagation();
+  skinKeyNav = true;
+});
+
+// Enter/Escape cierran la lista: se sueltan en keyup, ya con la opcion aplicada
+skinSelect.addEventListener('keyup', e => {
+  e.stopPropagation();
+  if (e.code === 'Enter' || e.code === 'Escape') skinSelect.blur();
+});
+
+skinSelect.addEventListener('blur', () => { skinKeyNav = false; });
+
+skinSelect.addEventListener('change', () => {
+  ensureAudio();
+  applySkin(skinSelect.value);
+  // tras elegir con el raton el foco se queda en el select y uiBlocked() bloquearia
+  // el teclado del juego; con el teclado se conserva para poder seguir eligiendo
+  if (!skinKeyNav) skinSelect.blur();
+});
 soundBtn.addEventListener('click', () => {
   ensureAudio();
   applySound(!soundOn);
   if (soundOn) tone(880, 0, 0.12, 'triangle', 0.25);   // confirmación audible
 });
 
-applyTheme(localStorage.getItem('tetris-theme') || 'dark');
+applySkin(localStorage.getItem('tetris-skin') || DEFAULT_SKIN);
 applySound(soundOn);
 init();
