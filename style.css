@@ -4,6 +4,8 @@
   padding: 0;
 }
 
+/* Paleta base = skin Retro. Sirve de respaldo hasta que game.js pone
+   data-skin en el <body>; la skin activa la sobreescribe entera más abajo. */
 body {
   --bg: #0f0f17;
   --text: #e0e0e0;
@@ -35,25 +37,103 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-body.light {
-  --bg: #f0f2f8;
-  --text: #20202a;
-  --accent: #3b5fcf;
-  --title-glow: rgba(59, 95, 207, 0.35);
+/* ---- Skins visuales ----
+   La skin es el único eje visual del juego (sustituye al antiguo tema
+   claro/oscuro). Cada bloque redefine la paleta completa de la interfaz; los
+   colores de los bloques del tablero viven en SKINS, dentro de game.js.
+   Toda UI nueva debe usar estas variables para heredar las cuatro skins. */
+
+body[data-skin="retro"] {
+  --bg: #0f0f17;
+  --text: #e0e0e0;
+  --accent: #7aa2f7;
+  --title-glow: rgba(122, 162, 247, 0.5);
+  --board-bg: #1a1a25;
+  --border: #2a2a3a;
+  --label-color: #555570;
+  --muted: #888;
+  --kbd-bg: #22223a;
+  --kbd-border: #3a3a5a;
+  --kbd-color: #aaa;
+  --overlay-bg: rgba(10, 10, 20, 0.75);
+  --overlay-title: #e57373;
+  --btn-text: #0f0f17;
+  --toggle-track: #22223a;
+  --toggle-border: #3a3a5a;
+  --combo-hot: #ffd54f;
+  --b2b-color: #ffb74d;
+}
+
+body[data-skin="neon"] {
+  --bg: #000000;
+  --text: #d8faff;
+  --accent: #00e5ff;
+  --title-glow: rgba(0, 229, 255, 0.75);
+  --board-bg: #05050a;
+  --border: #00b8d4;
+  --label-color: #4a7f8c;
+  --muted: #6fb6c4;
+  --kbd-bg: #06121a;
+  --kbd-border: #00b8d4;
+  --kbd-color: #7df9ff;
+  --overlay-bg: rgba(0, 0, 0, 0.8);
+  --overlay-title: #ff2d95;
+  --btn-text: #001018;
+  --toggle-track: #06121a;
+  --toggle-border: #00b8d4;
+  --combo-hot: #ffea00;
+  --b2b-color: #ff9100;
+}
+
+body[data-skin="pastel"] {
+  --bg: #f6f2fa;
+  --text: #4a4458;
+  --accent: #8f7bd6;
+  --title-glow: rgba(143, 123, 214, 0.35);
   --board-bg: #ffffff;
-  --border: #d0d4e0;
-  --label-color: #6b6b85;
-  --muted: #6b6b78;
-  --kbd-bg: #e4e6f0;
-  --kbd-border: #c4c8d8;
-  --kbd-color: #444;
-  --overlay-bg: rgba(240, 242, 248, 0.85);
-  --overlay-title: #c0392b;
+  --border: #e2dced;
+  --label-color: #9a93ab;
+  --muted: #857e96;
+  --kbd-bg: #efe9f7;
+  --kbd-border: #ddd4ec;
+  --kbd-color: #6b6480;
+  --overlay-bg: rgba(246, 242, 250, 0.85);
+  --overlay-title: #d16f86;
   --btn-text: #ffffff;
-  --toggle-track: #ccced8;
-  --toggle-border: #b8bccc;
-  --combo-hot: #b8860b;
-  --b2b-color: #b35c00;
+  --toggle-track: #e6e0f0;
+  --toggle-border: #d3cae4;
+  --combo-hot: #c98a2e;
+  --b2b-color: #b3657f;
+}
+
+body[data-skin="pixel"] {
+  --bg: #14161f;
+  --text: #d7e0c8;
+  --accent: #8bd450;
+  --title-glow: rgba(139, 212, 80, 0.45);
+  --board-bg: #0d0f16;
+  --border: #3a4356;
+  --label-color: #5d6b7a;
+  --muted: #8f9aa8;
+  --kbd-bg: #1d2231;
+  --kbd-border: #3a4356;
+  --kbd-color: #b7c2cf;
+  --overlay-bg: rgba(10, 12, 18, 0.8);
+  --overlay-title: #e05c5c;
+  --btn-text: #0d0f16;
+  --toggle-track: #1d2231;
+  --toggle-border: #3a4356;
+  --combo-hot: #f2c744;
+  --b2b-color: #e08b30;
+}
+
+/* el glow del canvas acompaña al de los bloques */
+body[data-skin="neon"] #board {
+  box-shadow: 0 0 45px rgba(0, 229, 255, 0.3);
+}
+
+body[data-skin="pastel"] #board {
+  box-shadow: 0 0 40px rgba(143, 123, 214, 0.18);
 }
 
 .wrapper {
@@ -70,7 +150,7 @@ body.light {
   text-shadow: 0 0 20px var(--title-glow);
 }
 
-/* ---- Controles superiores (sonido + tema) ---- */
+/* ---- Controles superiores (sonido + skin) ---- */
 .top-controls {
   position: absolute;
   top: 4px;
@@ -100,46 +180,27 @@ body.light {
   outline-offset: 2px;
 }
 
-/* ---- Switch de tema ---- */
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
+/* ---- Selector de skin ---- */
+.skin-select {
+  background: var(--kbd-bg);
+  color: var(--kbd-color);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.theme-toggle input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
+/* algunos navegadores no heredan el color de la lista desplegable */
+.skin-select option {
+  background: var(--kbd-bg);
+  color: var(--kbd-color);
 }
 
-.theme-toggle-track {
-  width: 44px;
-  height: 24px;
-  background: var(--toggle-track);
-  border: 1px solid var(--toggle-border);
-  border-radius: 999px;
-  position: relative;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.theme-toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  transition: transform 0.15s, background 0.15s;
-}
-
-.theme-toggle input:checked + .theme-toggle-track .theme-toggle-thumb {
-  transform: translateX(20px);
-}
-
-.theme-toggle input:focus-visible + .theme-toggle-track {
+.skin-select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -291,6 +352,7 @@ kbd {
   transition: background 0.15s;
 }
 
+/* aclarado relativo al acento: un literal fijo desentonaría con las otras skins */
 #restart-btn:hover {
-  background: #9bbdff;
+  filter: brightness(1.15);
 }
