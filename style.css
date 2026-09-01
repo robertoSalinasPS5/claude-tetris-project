@@ -294,3 +294,154 @@ kbd {
 #restart-btn:hover {
   background: #9bbdff;
 }
+
+/* ---- Pantallas del overlay ---- */
+.overlay-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.overlay-screen.hidden {
+  display: none;
+}
+
+/* ---- Tabla de récords ---- */
+.records-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 600;
+  color: var(--label-color);
+}
+
+.records-table {
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.records-table th {
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: var(--label-color);
+  text-align: left;
+  padding: 0 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.records-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  text-align: left;
+}
+
+.records-table .num {
+  text-align: right;
+}
+
+.records-table tr.record-new td {
+  background: var(--kbd-bg);
+  color: var(--combo-hot);
+  font-weight: 700;
+}
+
+.records-empty,
+.records-bests {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.records-empty.hidden,
+.records-bests.hidden {
+  display: none;
+}
+
+/* ---- Formulario de nombre ---- */
+.record-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.record-form.hidden {
+  display: none;
+}
+
+.record-form-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--combo-hot);
+}
+
+.record-form-row {
+  display: flex;
+  gap: 6px;
+}
+
+#record-name {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 6px 10px;
+  width: 150px;
+  text-transform: uppercase;
+}
+
+#record-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+#record-save-btn {
+  background: var(--accent);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#records-reset-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+/* la cabecera sola, sin filas, queda descolgada sobre el mensaje de "sin récords" */
+.records-table.hidden {
+  display: none;
+}
+
+#records-reset-btn:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+#record-save-btn:focus-visible,
+#records-reset-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

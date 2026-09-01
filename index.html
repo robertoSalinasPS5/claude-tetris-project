@@ -63,6 +63,37 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+
+        <div class="overlay-screen hidden" id="records-screen">
+          <form class="record-form hidden" id="record-form">
+            <label class="record-form-label" for="record-name">¡Entras en el top 5! Escribe tu nombre</label>
+            <div class="record-form-row">
+              <input type="text" id="record-name" maxlength="12" placeholder="JUGADOR"
+                     autocomplete="off" spellcheck="false" />
+              <button type="submit" id="record-save-btn">Guardar</button>
+            </div>
+          </form>
+
+          <p class="records-title">MEJORES PUNTUACIONES</p>
+          <table class="records-table" id="records-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>NOMBRE</th>
+                <th class="num">PUNTOS</th>
+                <th class="num">LÍN.</th>
+                <th class="num">NIV.</th>
+                <th class="num" title="Nivel inicial de la partida">INI.</th>
+                <th class="num">COMBO</th>
+              </tr>
+            </thead>
+            <tbody id="records-body"></tbody>
+          </table>
+          <p class="records-empty hidden" id="records-empty">Aún no hay récords guardados.</p>
+          <p class="records-bests hidden" id="records-bests"></p>
+          <button type="button" id="records-reset-btn">Borrar récords</button>
+        </div>
+
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
